@@ -1,12 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
   const [value, setValue] = useState("");
+  const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState("");
 
+  const router = useRouter();
+  const { login } = useAuth();
+
+  // STEP 1: Send OTP (Dummy)
   const sendOtp = () => {
     if (!value) {
       alert("Enter mobile number or email");
@@ -15,76 +21,69 @@ export default function LoginPage() {
     setOtpSent(true);
   };
 
+  // STEP 2: Verify OTP (Dummy login)
   const verifyOtp = () => {
-    if (otp !== "1234") {
-      alert("Invalid OTP (use 1234)");
-      return;
-    }
+    setLoading(true);
 
-    localStorage.setItem(
-      "user",
-      JSON.stringify({
-        id: Date.now(),
-        value,
-      })
-    );
+    // 🔐 LOGIN (IMPORTANT)
+    login({
+      id: "user-1", // REQUIRED
+      name: "Toringo User",
+      email: value,
+    });
 
-    window.location.href = "/account";
+    const redirect =
+      localStorage.getItem("redirectAfterLogin") || "/";
+    localStorage.removeItem("redirectAfterLogin");
 
-    const handleLogin = () => {
-  // demo login
-  localStorage.setItem(
-    "user",
-    JSON.stringify({ name: "Toringo User" })
-  );
-
-  const redirectTo =
-    localStorage.getItem("redirectAfterLogin") || "/";
-
-  localStorage.removeItem("redirectAfterLogin");
-
-  window.location.href = redirectTo;
-};
-
+    router.push(redirect);
   };
 
   return (
-    <div className="max-w-md mx-auto p-4 mt-10 border rounded">
-      <h1 className="text-xl font-bold mb-4">Login</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white w-full max-w-md p-6 rounded shadow">
+        <h1 className="text-xl font-semibold text-center mb-4">
+          Login
+        </h1>
 
-      {!otpSent ? (
-        <>
-          <input
-            className="w-full border p-2 rounded mb-3"
-            placeholder="Mobile number or Email"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-          />
+        {/* INPUT */}
+        <input
+          type="text"
+          placeholder="Mobile number or Email"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-full border p-2 rounded mb-4"
+        />
 
+        {/* SEND OTP */}
+        {!otpSent && (
           <button
             onClick={sendOtp}
-            className="w-full bg-blue-600 text-white p-2 rounded"
+            className="w-full bg-blue-600 text-white py-2 rounded"
           >
             Send OTP
           </button>
-        </>
-      ) : (
-        <>
-          <input
-            className="w-full border p-2 rounded mb-3"
-            placeholder="Enter OTP (1234)"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value)}
-          />
+        )}
 
-          <button
-            onClick={verifyOtp}
-            className="w-full bg-green-600 text-white p-2 rounded"
-          >
-            Verify & Login
-          </button>
-        </>
-      )}
+        {/* VERIFY OTP */}
+        {otpSent && (
+          <>
+            <input
+              type="text"
+              placeholder="Enter OTP (any number)"
+              className="w-full border p-2 rounded mb-4 mt-4"
+            />
+
+            <button
+              onClick={verifyOtp}
+              disabled={loading}
+              className="w-full bg-green-600 text-white py-2 rounded"
+            >
+              {loading ? "Verifying..." : "Verify & Login"}
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
