@@ -5,6 +5,7 @@ import "./globals.css";
 import Header from "./components/Header";
 import BottomNav from "./components/BottomNav";
 import Providers from "./providers";
+import { CartProvider } from "../context/CartContext";
 
 export const metadata: Metadata = {
   title: "Toringo India",

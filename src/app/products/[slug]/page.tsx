@@ -1,128 +1,159 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function ProductDetailPage() {
+import ProductGallery from "@/components/ProductGallery";
+import QuantitySelector from "@/components/QuantitySelector";
+import AddToCartButton from "@/components/AddToCartButton";
+import { useCart } from "@/context/CartContext";
+
+export default function ProductPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
   const router = useRouter();
+  const { addToCart, clearCart } = useCart();
 
-  // 🔹 Demo product (later API se aayega)
-  const product = {
-    id: "p1",
-    name: "Cement UltraTech 50kg",
-    price: 399,
-    images: [
-      "/product-1.png",
-      "/product-2.png",
-      "/product-3.png",
-    ],
+  const [product, setProduct] = useState<any>(null);
+  const [qty, setQty] = useState<number>(1);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
+
+  // 🔹 Product fetch by slug
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+
+        const res = await fetch("/api/products", {
+          cache: "no-store",
+        });
+
+        if (!res.ok) throw new Error("Failed to load products");
+
+        const products = await res.json();
+        const found = products.find(
+          (p: any) => p.slug === params.slug
+        );
+
+        if (!found) {
+          setError("Product not found");
+        } else {
+          setProduct(found);
+        }
+      } catch (err) {
+        setError("Something went wrong");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [params.slug]);
+
+  // 🔹 Buy Now logic
+  const buyNow = () => {
+    clearCart();                 // purana cart clear
+    addToCart(product, qty);     // current product add
+    router.push("/checkout");    // direct checkout
   };
 
-  const [activeImage, setActiveImage] = useState(0);
-  const [zoomOpen, setZoomOpen] = useState(false);
-
-  // 🛒 Add to cart
-  const addToCart = () => {
-    const cart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
+  // 🔹 Loading
+  if (loading) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        Loading product...
+      </div>
     );
+  }
 
-    const existing = cart.find(
-      (item: any) => item.id === product.id
+  // 🔹 Error / Not found
+  if (error || !product) {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-red-500 mb-4">
+          {error || "Product not found"}
+        </p>
+        <button
+          onClick={() => router.back()}
+          className="text-blue-600 underline"
+        >
+          Go Back
+        </button>
+      </div>
     );
+  }
 
-    if (existing) {
-      existing.qty += 1;
-    } else {
-      cart.push({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        qty: 1,
-      });
-    }
-
-    localStorage.setItem("cart", JSON.stringify(cart));
-    alert("Added to cart");
-  };
+  const discount =
+    product.mrp && product.mrp > product.price
+      ? product.mrp - product.price
+      : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 pb-24">
-      <div className="max-w-4xl mx-auto bg-white rounded shadow p-4">
+    <div className="max-w-6xl mx-auto p-4 grid md:grid-cols-2 gap-8">
+      {/* 🔹 LEFT : Images */}
+      <ProductGallery
+        images={product.images || [product.image]}
+      />
 
-        {/* ===== IMAGE SECTION ===== */}
-        <div className="flex flex-col md:flex-row gap-4">
+      {/* 🔹 RIGHT : Details */}
+      <div>
+        <h1 className="text-2xl font-bold">{product.name}</h1>
 
-          {/* Thumbnails */}
-          <div className="flex md:flex-col gap-2">
-            {product.images.map((img, i) => (
-              <img
-                key={i}
-                src={img}
-                onClick={() => setActiveImage(i)}
-                className={`w-16 h-16 object-contain border cursor-pointer ${
-                  activeImage === i
-                    ? "border-blue-600"
-                    : ""
-                }`}
-              />
-            ))}
-          </div>
+        <div className="mt-2 flex items-center gap-3">
+          <span className="text-2xl font-semibold text-green-600">
+            ₹{product.price}
+          </span>
 
-          {/* Main Image */}
-          <div className="flex-1 flex justify-center">
-            <img
-              src={product.images[activeImage]}
-              alt={product.name}
-              onClick={() => setZoomOpen(true)}
-              className="max-h-80 object-contain cursor-zoom-in"
-            />
-          </div>
+          {product.mrp && (
+            <span className="line-through text-gray-400">
+              ₹{product.mrp}
+            </span>
+          )}
         </div>
 
-        {/* ===== PRODUCT INFO ===== */}
-        <div className="mt-6">
-          <h1 className="text-xl font-bold mb-2">
-            {product.name}
-          </h1>
-
-          <p className="text-2xl font-semibold text-green-600 mb-4">
-            ₹{product.price}
+        {discount > 0 && (
+          <p className="text-sm text-green-700 mt-1">
+            You save ₹{discount}
           </p>
+        )}
 
-          <div className="flex gap-4">
-            <button
-              onClick={addToCart}
-              className="flex-1 border border-green-600 text-green-600 py-2 rounded"
-            >
-              Add to Cart
-            </button>
+        <p className="mt-4 text-gray-600 leading-relaxed">
+          {product.description}
+        </p>
 
-            <button
-              onClick={() => {
-                addToCart();
-                router.push("/checkout");
-              }}
-              className="flex-1 bg-green-600 text-white py-2 rounded"
-            >
-              Buy Now
-            </button>
-          </div>
+        {/* 🔹 Quantity */}
+        <div className="mt-6">
+          <QuantitySelector qty={qty} setQty={setQty} />
+        </div>
+
+        {/* 🔹 Action Buttons */}
+        <div className="mt-6 flex gap-3">
+          {/* Add to Cart */}
+          <AddToCartButton product={product} qty={qty} />
+
+          {/* Buy Now */}
+          <button
+            onClick={buyNow}
+            className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded font-semibold"
+          >
+            Buy Now
+          </button>
+        </div>
+
+        {/* 🔹 Extra info */}
+        <div className="mt-6 text-sm text-gray-500 space-y-1">
+          <p>Category: {product.category}</p>
+          {product.stock !== undefined && (
+            <p>
+              Stock:{" "}
+              {product.stock > 0 ? "Available" : "Out of stock"}
+            </p>
+          )}
         </div>
       </div>
-
-      {/* ===== IMAGE ZOOM MODAL ===== */}
-      {zoomOpen && (
-        <div
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
-          onClick={() => setZoomOpen(false)}
-        >
-          <img
-            src={product.images[activeImage]}
-            className="max-h-[90%] max-w-[90%] object-contain"
-          />
-        </div>
-      )}
     </div>
   );
 }
